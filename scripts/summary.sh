@@ -17,8 +17,9 @@ verdicts() {
 	local f="$1"
 	[ -f "$f" ] || { echo "brak"; return; }
 	local p b
-	p="$(grep -oic 'POSSIBLE' "$f" 2>/dev/null || echo 0)"
-	b="$(grep -oic 'BLOCKED' "$f" 2>/dev/null || echo 0)"
+	# grep -c sam wypisuje 0 przy braku dopasowań (exit 1) — "|| echo 0" dawało "0\n0"
+	p="$(grep -ic 'POSSIBLE' "$f" 2>/dev/null)" || true
+	b="$(grep -ic 'BLOCKED' "$f" 2>/dev/null)" || true
 	echo "P=${p} B=${b}"
 }
 
@@ -30,10 +31,10 @@ state() {
 }
 
 row() {
-	local nr="$1" name="$2" file="$3" mech="$4"
+	local label="$1" file="$2" mech="$3"
 	local bf="${BEFORE}/${file}" af="${AFTER}/${file}"
 	printf '| %s | %s (%s) | %s (%s) | %s | `%s` |\n' \
-		"$nr" "$(state "$bf")" "$(verdicts "$bf")" \
+		"$label" "$(state "$bf")" "$(verdicts "$bf")" \
 		"$(state "$af")" "$(verdicts "$af")" "$mech" "results/*/${file}"
 }
 
@@ -47,12 +48,12 @@ log "Buduję $OUT"
 	echo
 	echo "| Scenariusz | Przed | Po | Mechanizm | Plik z dowodem |"
 	echo "| --- | --- | --- | --- | --- |"
-	row "S1 — eskalacja z poda"        "S1" "s1_privesc.txt"            "PodSecurity, runAsNonRoot, drop caps (04)"
-	row "S2 — token SA do API"         "S2" "s2_sa_token.txt"          "automountServiceAccountToken:false, RBAC (03)"
-	row "S3 — ruch między CNF"         "S3" "s3_east_west.txt"         "NetworkPolicy default-deny + allow (01,02)"
-	row "S4 — odczyt secrets"          "S4" "s4_secrets.txt"           "secrety jako pliki, RBAC get secrets (06)"
-	row "S5 — łańcuch dostaw"          "S5" "s5_supply_chain.txt"      "skan obrazów, aktualizacja (poza k8s)"
-	row "S6 — wyczerpanie zasobów"     "S6" "s6_resource_exhaustion.txt" "ResourceQuota + LimitRange (05)"
+	row "S1 — eskalacja z poda"        "s1_privesc.txt"             "PodSecurity, runAsNonRoot, drop caps (04)"
+	row "S2 — token SA do API"         "s2_sa_token.txt"            "automountServiceAccountToken:false, RBAC (03)"
+	row "S3 — ruch między CNF"         "s3_east_west.txt"           "NetworkPolicy default-deny + allow (01,02)"
+	row "S4 — odczyt secrets"          "s4_secrets.txt"             "secrety jako pliki, RBAC get secrets (06)"
+	row "S5 — łańcuch dostaw"          "s5_supply_chain.txt"        "skan obrazów, aktualizacja (poza k8s)"
+	row "S6 — wyczerpanie zasobów"     "s6_resource_exhaustion.txt" "ResourceQuota + LimitRange (05)"
 	echo
 	echo "## Macierz połączeń S3 (wschód-zachód)"
 	echo

@@ -95,9 +95,13 @@ ok "secrets.txt"
 	section "securityContext per kontener"
 	printf '%-36s %-10s %-9s %-10s %-8s %-18s %s\n' \
 		POD CONTAINER PRIV RUNASNONROOT ROOTFS CAPS-ADD HOST
-	kubectl get pods -n "$NS" -o json | python3 - "$NS" <<'PY' 2>/dev/null || echo "(python3 niedostępny — użyj jsonpath)"
+	# JSON do pliku tymczasowego: heredoc zajmuje stdin pythona, więc pipe by go nadpisał (SC2259).
+	pods_json="$(mktemp)"
+	if kubectl get pods -n "$NS" -o json > "$pods_json"; then
+		python3 - "$pods_json" <<'PY' 2>/dev/null || echo "(python3 niedostępny — użyj jsonpath)"
 import json,sys
-data=json.load(sys.stdin)
+with open(sys.argv[1]) as f:
+    data=json.load(f)
 for it in data.get("items",[]):
     pod=it["metadata"]["name"]
     spec=it["spec"]
@@ -112,6 +116,10 @@ for it in data.get("items",[]):
         host=f"net={hostnet}"+(f",hostPath={hostpaths}" if hostpaths else "")
         print(f'{pod:<36} {c["name"]:<10} {str(priv):<9} {str(rnr):<10} {str(rofs):<8} {",".join(caps) or "-":<18} {host}')
 PY
+	else
+		echo "(kubectl get pods -o json nie powiódł się)"
+	fi
+	rm -f "$pods_json"
 	echo
 	echo "Uwaga: UPF zwykle wymaga uprawnień do gtp5g (privileged / NET_ADMIN) — traktuj osobno."
 } > "${OUTDIR}/securitycontext.txt"
