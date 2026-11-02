@@ -1,0 +1,45 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - git
+  - curl
+  - wget
+  - jq
+  - make
+  - gcc
+  - build-essential
+  - net-tools
+  - iproute2
+  - iputils-ping
+  - netcat-openbsd
+  - tcpdump
+  - python3-pip
+  - python3-venv
+  - mokutil
+  - stress-ng
+  - asciinema
+
+write_files:
+  - path: /etc/modules-load.d/5g.conf
+    content: |
+      sctp
+  - path: /etc/sysctl.d/90-5g-lab.conf
+    content: |
+      fs.inotify.max_user_watches=524288
+      fs.inotify.max_user_instances=512
+      net.ipv4.ip_forward=1
+
+runcmd:
+  - apt-get install -y linux-headers-$(uname -r) linux-modules-extra-$(uname -r) || true
+  - modprobe sctp || true
+  - sysctl --system
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get install -y nodejs
+  - mkdir -p /home/ubuntu/src
+  - chown -R ubuntu:ubuntu /home/ubuntu/src
+  # cały wpis w pojedynczych cudzysłowach: "5g-lab: OK" bez nich YAML parsuje jako mapę i runcmd pada
+  - 'echo "cloud-init 5g-lab: OK $(date)" > /home/ubuntu/VM_READY'
+
+final_message: "VM 5g-lab gotowa po $UPTIME s. Sprawdź: cat ~/VM_READY"
