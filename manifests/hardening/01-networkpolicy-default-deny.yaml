@@ -1,0 +1,18 @@
+# Faza 4 / 01 — default-deny ingress i egress w namespace free5gc.
+# Po nałożeniu ruch jest blokowany, dopóki 02-networkpolicy-allow.yaml nie
+# otworzy potrzebnych par. Działa tylko z CNI egzekwującym politykę (Calico/Cilium).
+# UWAGA: nie obejmuje interfejsów Multus (N2/N3/N4) — patrz S3.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: free5gc
+  labels:
+    app: free5gc
+    hardening: "01"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  # Brak ingress/egress reguł = wszystko zablokowane.

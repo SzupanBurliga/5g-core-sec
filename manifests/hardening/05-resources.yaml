@@ -1,0 +1,43 @@
+# Faza 4 / 05 — limity zasobów. LimitRange nadaje domyślne requests/limits
+# kontenerom bez nich (odpowiedź na S6); ResourceQuota ogranicza sumę zasobów
+# namespace, więc jeden pod nie zagłodzi reszty rdzenia.
+# Dobierz liczby do RAM VM (12 GB) — poniżej ostrożne wartości dla single-node.
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: free5gc-limits
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "05" }
+spec:
+  limits:
+    - type: Container
+      # Domyślne limity dla kontenerów bez jawnych wartości.
+      default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      # Górny pułap na pojedynczy kontener — blokuje stress-ng bez limitu.
+      max:
+        cpu: "2"
+        memory: "2Gi"
+      min:
+        cpu: "10m"
+        memory: "32Mi"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: free5gc-quota
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "05" }
+spec:
+  hard:
+    # Suma dla całego namespace — chroni węzeł przed wyczerpaniem.
+    requests.cpu: "3"
+    requests.memory: "6Gi"
+    limits.cpu: "6"
+    limits.memory: "9Gi"
+    pods: "40"

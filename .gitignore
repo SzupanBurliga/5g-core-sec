@@ -1,0 +1,10 @@
+# Lokalne artefakty VM / klastra — nie commitować
+*.kubeconfig
+kubeconfig
+*.log
+*.tmp
+.DS_Store
+
+# results/ JEST wersjonowane (dowody przed/po) — nie ignorujemy.
+# Ignoruj tylko ciężkie raporty Trivy JSON, jeśli urosną zbyt duże:
+# results/*/trivy/*.json

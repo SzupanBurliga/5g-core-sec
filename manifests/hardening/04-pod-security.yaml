@@ -1,0 +1,47 @@
+# Faza 4 / 04 — Pod Security Admission na poziomie namespace.
+# enforce=baseline (UPF wymaga NET_ADMIN/gtp5g i nie przejdzie restricted),
+# warn/audit=restricted by widzieć, co trzeba dociągnąć.
+#
+# Jeśli chcesz enforce=restricted dla całego rdzenia poza UPF: przenieś UPF do
+# osobnego namespace free5gc-upf z łagodniejszym poziomem (trade-off opisany
+# w docs/setup-notes.md).
+#
+# securityContext per kontener ustaw w manifestach/charcie — wzór w komentarzu
+# na końcu pliku. UPF to udokumentowany wyjątek.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: free5gc
+  labels:
+    app: free5gc
+    hardening: "04"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+# ---------------------------------------------------------------------------
+# Wzór securityContext dla zwykłej CNF (AMF/SMF/AUSF/UDM/UDR/NSSF/PCF/NRF),
+# do wstawienia w spec kontenera (wartości chartu 1B lub manifesty 1C):
+#
+#   securityContext:
+#     runAsNonRoot: true
+#     runAsUser: 65534
+#     allowPrivilegeEscalation: false
+#     readOnlyRootFilesystem: true
+#     capabilities:
+#       drop: ["ALL"]
+#     seccompProfile:
+#       type: RuntimeDefault
+#
+# WYJĄTEK — UPF (gtp5g, płaszczyzna danych GTP-U). Minimalny wyjątek:
+#   securityContext:
+#     runAsNonRoot: false
+#     allowPrivilegeEscalation: true
+#     capabilities:
+#       drop: ["ALL"]
+#       add: ["NET_ADMIN"]      # zamiast privileged: true, jeśli UPF to akceptuje
+# Jeśli UPF wymaga privileged: true -> trzymaj go w osobnym namespace z
+# enforce=privileged i opisz jako trade-off.
+# ---------------------------------------------------------------------------

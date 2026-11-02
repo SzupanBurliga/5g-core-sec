@@ -1,0 +1,195 @@
+# Faza 4 / 02 — reguły allow po default-deny (01).
+# Pary wg architektury SBI free5GC: wszystkie NF rejestrują się w NRF; AMF woła
+# AUSF/UDM/SMF; SMF woła UPF(PFCP)/UDM/PCF; UDR czyta MongoDB; DNS do kube-dns.
+# Etykiety: app=free5gc, nf=<nazwa>. Port SBI: 8000. MongoDB: 27017.
+# PARY ZWERYFIKUJ z konfiguracją free5GC przed prezentacją (nie zgadywać ról).
+---
+# DNS: każdy pod może pytać kube-dns (UDP/TCP 53).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# NRF jest hubem SBI: przyjmuje ingress na 8000 od wszystkich NF.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-nrf-sbi
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { nf: nrf }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: nf, operator: In, values: [amf, smf, upf, ausf, udm, udr, nssf, pcf] }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# Wszystkie NF mogą wychodzić do NRF (8000) — rejestracja/discovery.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-nrf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: nf, operator: In, values: [amf, smf, upf, ausf, udm, udr, nssf, pcf] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { nf: nrf }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# AMF -> AUSF, UDM, SMF, NSSF (SBI 8000).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-amf-egress
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { nf: amf }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - { key: nf, operator: In, values: [ausf, udm, smf, nssf] }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# Ingress do AUSF/UDM/SMF/NSSF od AMF (SBI 8000).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-amf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: nf, operator: In, values: [ausf, udm, smf, nssf] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { nf: amf }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# SMF -> UDM, PCF, UPF (SBI 8000; PFCP do UPF to interfejs Multus N4 — poza NP).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-smf-egress
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { nf: smf }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - { key: nf, operator: In, values: [udm, pcf, upf] }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# Ingress do UDM/PCF od SMF (SBI 8000).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-smf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: nf, operator: In, values: [udm, pcf] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { nf: smf }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# AUSF/UDM -> UDR (SBI 8000): dane abonentów.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-udr-sbi
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { nf: udr }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: nf, operator: In, values: [udm, ausf, pcf] }
+      ports:
+        - { protocol: TCP, port: 8000 }
+---
+# UDR -> MongoDB (27017). Tylko UDR ma dostęp do bazy abonentów.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-udr-to-mongodb
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { nf: udr }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: mongodb }
+      ports:
+        - { protocol: TCP, port: 27017 }
+---
+# Ingress do MongoDB tylko od UDR (i WebUI, jeśli współdzieli bazę).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mongodb-ingress
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "02" }
+spec:
+  podSelector:
+    matchLabels: { app: mongodb }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: nf, operator: In, values: [udr] }
+        - podSelector:
+            matchLabels: { app: webui }
+      ports:
+        - { protocol: TCP, port: 27017 }

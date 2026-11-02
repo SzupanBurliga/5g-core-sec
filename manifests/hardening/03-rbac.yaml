@@ -1,0 +1,78 @@
+# Faza 4 / 03 — RBAC. Osobny ServiceAccount per CNF z wyłączonym automountem
+# tokenu (CNF free5GC nie wołają API k8s). Brak Role/RoleBinding = brak uprawnień
+# do API. Podepnij te SA w manifestach free5gc (1C) albo wartościach chartu (1B).
+#
+# Zastosowanie w podach: ustaw w spec.serviceAccountName odpowiedni SA
+# oraz automountServiceAccountToken: false (tu ustawione na poziomie SA).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-nrf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-amf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-smf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-upf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-ausf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-udm
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-udr
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-nssf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: sa-pcf
+  namespace: free5gc
+  labels: { app: free5gc, hardening: "03" }
+automountServiceAccountToken: false
